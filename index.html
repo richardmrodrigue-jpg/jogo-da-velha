@@ -5,81 +5,120 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Jogo da Velha</title>
   <style>
-    body { font-family: Arial, Helvetica, sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; background:#f7f7f7; }
-    .container { text-align:center; }
-    .board { display:grid; grid-template-columns:repeat(3,100px); gap:5px; margin:20px auto; }
-    .cell { width:100px; height:100px; background:white; display:flex; align-items:center; justify-content:center; font-size:48px; cursor:pointer; border:1px solid #ddd; user-select:none; }
-    .info { margin-top:10px; }
-    button{ padding:8px 12px; }
+    body { font-family: Arial, Helvetica, sans-serif; margin:0; padding:30px; background:#f7f7f7; }
+    .container { max-width:760px; margin:0 auto; text-align:center; }
+    .board { display:grid; grid-template-columns:repeat(3,120px); gap:6px; justify-content:center; margin:20px 0; }
+    .cell { width:120px; height:120px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:56px; cursor:pointer; border:1px solid #ddd; user-select:none; }
+    .info { margin-top:8px; }
+    button{ padding:8px 12px; margin-left:8px; }
+    .hidden { display:none; }
+    .error { color:#b00; margin-top:12px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Jogo da Velha</h1>
-    <div id="board" class="board"></div>
+    <h1>jogo da velha</h1>
+    <div id="js-fallback" class="error hidden">Erro: o JavaScript não foi carregado. Abra o console (F12) para ver detalhes.</div>
+
+    <div id="board" class="board" aria-label="Tabuleiro do jogo" role="grid"></div>
+
     <div class="info">
-      <div id="status">Jogador X</div>
+      <span id="status">Jogador X</span>
       <button id="reset">Reiniciar</button>
     </div>
   </div>
 
   <script>
-    const boardEl = document.getElementById('board');
-    const statusEl = document.getElementById('status');
-    const resetBtn = document.getElementById('reset');
-
-    let board = Array(9).fill('');
-    let player = 'X';
-    let finished = false;
-
-    function render() {
-      boardEl.innerHTML = '';
-      board.forEach((v, i) => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.innerText = v;
-        cell.addEventListener('click', () => play(i));
-        boardEl.appendChild(cell);
-      });
-      statusEl.innerText = finished ? 'Fim de jogo' : `Jogador ${player}`;
+  (function(){
+    // segurança: rode só quando DOM estiver pronto
+    function ready(fn){
+      if(document.readyState !== 'loading') fn();
+      else document.addEventListener('DOMContentLoaded', fn);
     }
 
-    function checkWin(b) {
-      const combos = [
-        [0,1,2],[3,4,5],[6,7,8],
-        [0,3,6],[1,4,7],[2,5,8],
-        [0,4,8],[2,4,6]
-      ];
-      for (const [a,b1,c] of combos) {
-        if (b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
+    ready(function(){
+      try {
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        const resetBtn = document.getElementById('reset');
+        const jsFallback = document.getElementById('js-fallback');
+
+        // Inicialização
+        let board = Array(9).fill('');
+        let player = 'X';
+        let finished = false;
+
+        function render() {
+          // cria células dinamicamente
+          boardEl.innerHTML = '';
+          for (let i = 0; i < 9; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.setAttribute('data-i', i);
+            cell.setAttribute('role','button');
+            cell.tabIndex = 0;
+            cell.innerText = board[i];
+            // clique
+            cell.addEventListener('click', () => play(i));
+            // teclado (Enter / Space)
+            cell.addEventListener('keydown', (ev) => {
+              if(ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                play(i);
+              }
+            });
+            boardEl.appendChild(cell);
+          }
+          statusEl.innerText = finished ? 'Fim de jogo' : `Jogador ${player}`;
+        }
+
+        function checkWin(bd) {
+          const combos = [
+            [0,1,2],[3,4,5],[6,7,8],
+            [0,3,6],[1,4,7],[2,5,8],
+            [0,4,8],[2,4,6]
+          ];
+          for (const [a,bb,c] of combos) {
+            if (bd[a] && bd[a] === bd[bb] && bd[a] === bd[c]) return bd[a];
+          }
+          return null;
+        }
+
+        function play(i) {
+          if (finished || board[i]) return;
+          board[i] = player;
+          const winner = checkWin(board);
+          if (winner) {
+            finished = true;
+            statusEl.innerText = `🎉 Jogador ${winner} venceu!`;
+          } else if (!board.includes('')) {
+            finished = true;
+            statusEl.innerText = '🤝 Empate!';
+          } else {
+            player = (player === 'X') ? 'O' : 'X';
+            statusEl.innerText = `Jogador ${player}`;
+          }
+          render();
+        }
+
+        resetBtn.addEventListener('click', () => {
+          board = Array(9).fill('');
+          player = 'X';
+          finished = false;
+          render();
+        });
+
+        // render inicial
+        jsFallback.classList.add('hidden');
+        render();
+
+      } catch (err) {
+        // mostra fallback com erro
+        document.getElementById('js-fallback').classList.remove('hidden');
+        console.error("Erro no script do jogo:", err);
       }
-      return null;
-    }
-
-    function play(i) {
-      if (finished || board[i]) return;
-      board[i] = player;
-      const winner = checkWin(board);
-      if (winner) {
-        statusEl.innerText = `🎉 Jogador ${winner} venceu!`;
-        finished = true;
-      } else if (!board.includes('')) {
-        statusEl.innerText = '🤝 Empate!';
-        finished = true;
-      } else {
-        player = player === 'X' ? 'O' : 'X';
-      }
-      render();
-    }
-
-    resetBtn.addEventListener('click', () => {
-      board = Array(9).fill('');
-      player = 'X';
-      finished = false;
-      render();
     });
-
-    render();
+  })();
   </script>
 </body>
 </html>
